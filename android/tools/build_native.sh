@@ -30,7 +30,7 @@ VKH="$SRCDEPS/Vulkan-Headers-1.4.329/include"
 [ -d "$VKH" ] || VKH="$NDK/toolchains/llvm/prebuilt/$HOST/sysroot/usr/include"
 # the runtime's own flags (tools/lifter/build.py HOST_FLAGS), the Android compatibility layer, and frame pointers for the
 # crash reports' stack walks
-CFLAGS=(-c -O1 -g -w -D_GNU_SOURCE -fno-strict-aliasing -fshort-wchar -fPIC -fno-omit-frame-pointer -ffunction-sections
+CFLAGS=(-c -O3 -g -w -D_GNU_SOURCE -fno-strict-aliasing -fshort-wchar -fPIC -fno-omit-frame-pointer -ffunction-sections
         -include "$ROOT/android/compat/android_port.h" -I "$ROOT/android/compat" -I "$ROOT/android/third_party" -I "$STAGE"
         -I "$DEPS/sdl3/install/include" -I "$VKH" -I "$DEPS/adrenotools/install/include"
         '-Dfn_table=(*game_fn_table_p)' '-Dfn_table_count=(*game_fn_table_count_p)'

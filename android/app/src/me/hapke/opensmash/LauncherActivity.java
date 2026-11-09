@@ -81,7 +81,7 @@ public class LauncherActivity extends Activity {
     private Button start, copy;
     private ProgressBar progress;
     private Spinner touch, resolution, aspect, language;
-    private CheckBox fps, padRumble, deviceRumble;
+    private CheckBox fps, padRumble, deviceRumble, gpuBoost, framePacing;
     private String folderPath;
     /* Supported in-game languages */
     private static final String[] LANG_NAMES = {
@@ -253,6 +253,26 @@ public class LauncherActivity extends Activity {
         language = u.spinner(LANG_NAMES, p.getInt("language_idx", 0));
         disp.addView(language);
 
+        /* ---- Performance */
+        LinearLayout perf = u.card(page, "Performance / 效能優化", null);
+        gpuBoost = new CheckBox(this);
+        gpuBoost.setText("GPU 高效能加速 (Aggressive GPU Boost)");
+        gpuBoost.setTextColor(Ui.TEXT);
+        gpuBoost.setButtonTintList(android.content.res.ColorStateList.valueOf(Ui.ACCENT));
+        gpuBoost.setChecked(p.getBoolean("gpu_boost", true));
+        u.add(perf, gpuBoost, 4);
+
+        framePacing = new CheckBox(this);
+        framePacing.setText("平滑影格步調 (Smooth 60 FPS Pacing)");
+        framePacing.setTextColor(Ui.TEXT);
+        framePacing.setButtonTintList(android.content.res.ColorStateList.valueOf(Ui.ACCENT));
+        framePacing.setChecked(p.getBoolean("frame_pacing", true));
+        u.add(perf, framePacing, 6);
+
+        TextView perfNote = u.text("• GPU 加速能鎖定最高頻率以消除多人對戰卡頓。\n• 平滑步調能防止 90Hz/120Hz 螢幕上的影格抖動。", 12, Ui.TEXT2);
+        perfNote.setPadding(0, u.dp(6), 0, 0);
+        perf.addView(perfNote);
+
         /* ---- GPU driver */
         LinearLayout drv = u.card(page, "GPU driver", null);
         driverInfo = u.text("", 13, Ui.TEXT2);
@@ -386,7 +406,9 @@ public class LauncherActivity extends Activity {
                 .putInt("aspect", aspect.getSelectedItemPosition()).putBoolean("fps", fps.isChecked())
                 .putBoolean("pad_rumble", padRumble != null && padRumble.isChecked())
                 .putBoolean("device_rumble", deviceRumble != null && deviceRumble.isChecked())
-                .putInt("language_idx", language != null ? language.getSelectedItemPosition() : 0).apply();
+                .putInt("language_idx", language != null ? language.getSelectedItemPosition() : 0)
+                .putBoolean("gpu_boost", gpuBoost != null && gpuBoost.isChecked())
+                .putBoolean("frame_pacing", framePacing != null && framePacing.isChecked()).apply();
     }
 
     /** The screen's shape held in landscape, e.g. "20:9" (2400x1080), the cut-out of a camera included. */
@@ -1013,6 +1035,8 @@ public class LauncherActivity extends Activity {
         if (fps.isChecked()) env.add("SSBU_FPS=1");
         env.add("SSBU_PAD_RUMBLE=" + (padRumble != null && padRumble.isChecked() ? "1" : "0"));
         env.add("SSBU_DEVICE_RUMBLE=" + (deviceRumble != null && deviceRumble.isChecked() ? "1" : "0"));
+        if (gpuBoost != null && gpuBoost.isChecked()) env.add("SSBU_GPU_BOOST=2");
+        if (framePacing != null && framePacing.isChecked()) env.add("SSBU_VK_EVEN=1");
         int langIdx = language != null ? language.getSelectedItemPosition() : 0;
         String langCode = (langIdx >= 0 && langIdx < LANG_CODES.length) ? LANG_CODES[langIdx] : "en-US";
         env.add("SSBU_LANGUAGE=" + langCode);
