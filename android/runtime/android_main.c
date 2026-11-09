@@ -23,6 +23,12 @@
 int ssbu_main(int argc, char **argv);                 /* boot.c main (-Dmain=ssbu_main) */
 const char *game_dll_bind(void);                      /* gamedll.c */
 void display_close_request(void);                     /* display.c */
+void waveout_aaudio_set_app_paused(int paused);
+
+JNIEXPORT void JNICALL Java_me_hapke_opensmash_GameActivity_nativeSetAudioPause(JNIEnv *env, jclass cls, jboolean paused) {
+    (void)env; (void)cls;
+    waveout_aaudio_set_app_paused(paused ? 1 : 0);
+}
 
 static SDL_Window *g_window;
 static ANativeWindow *volatile g_native;
@@ -118,6 +124,16 @@ int android_message(const char *text, int question) {
     return r;
 }
 
+void android_device_vibrate(float amplitude, int duration_ms) {
+    JNIEnv *env = (JNIEnv *)SDL_GetAndroidJNIEnv();
+    if (!env) return;
+    jclass c = activity_class(env);
+    jmethodID m = c ? (*env)->GetStaticMethodID(env, c, "deviceVibrate", "(FI)V") : NULL;
+    if (m) (*env)->CallStaticVoidMethod(env, c, m, (jfloat)amplitude, (jint)duration_ms);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    if (c) (*env)->DeleteLocalRef(env, c);
+}
+
 /* ---------------------------------------------------------------- the surface */
 void *android_native_window(void) {
     AcquireSRWLockExclusive(&g_win_lock);
@@ -171,10 +187,10 @@ static bool SDLCALL event_watch(void *user, SDL_Event *e) {
         if (vk) compat_set_key(vk, e->type == SDL_EVENT_KEY_DOWN);
         break;
     }
-    case SDL_EVENT_WINDOW_FOCUS_GAINED: compat_set_focus(1); break;
-    case SDL_EVENT_WINDOW_FOCUS_LOST: compat_set_focus(0); break;
-    case SDL_EVENT_DID_ENTER_FOREGROUND: compat_set_focus(1); native_window_update(); break;
-    case SDL_EVENT_WILL_ENTER_BACKGROUND: compat_set_focus(0); break;
+    case SDL_EVENT_WINDOW_FOCUS_GAINED: compat_set_focus(1); waveout_aaudio_set_app_paused(0); break;
+    case SDL_EVENT_WINDOW_FOCUS_LOST: compat_set_focus(0); waveout_aaudio_set_app_paused(1); break;
+    case SDL_EVENT_DID_ENTER_FOREGROUND: compat_set_focus(1); waveout_aaudio_set_app_paused(0); native_window_update(); break;
+    case SDL_EVENT_WILL_ENTER_BACKGROUND: compat_set_focus(0); waveout_aaudio_set_app_paused(1); break;
     case SDL_EVENT_WINDOW_RESIZED: case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: case SDL_EVENT_WINDOW_SHOWN: native_window_update(); break;
     case SDL_EVENT_QUIT: case SDL_EVENT_TERMINATING: printf("android: the activity ends\n"); display_close_request(); break;
     default: break;
@@ -291,6 +307,8 @@ static int vpad_attach(void) {
         if (!id) { printf("android: the virtual pad cannot be attached: %s\n", SDL_GetError()); return 0; }
         g_vpad = SDL_OpenJoystick(id);
         if (!g_vpad) { printf("android: the virtual pad cannot be opened: %s\n", SDL_GetError()); return 0; }
+        SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, -32768);
+        SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, -32768);
         printf("android: on-screen controls attached as a virtual gamepad\n");
     }
     return g_vpad != NULL;
@@ -303,6 +321,6 @@ JNIEXPORT void JNICALL Java_me_hapke_opensmash_GameActivity_nativeTouchPad(JNIEn
     SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_LEFTY, (Sint16)(ly * 32767));
     SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_RIGHTX, (Sint16)(rx * 32767));
     SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_RIGHTY, (Sint16)(ry * 32767));
-    SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, (buttons >> 16 & 1) ? 32767 : 0);
-    SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, (buttons >> 17 & 1) ? 32767 : 0);
+    SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, (buttons >> 16 & 1) ? 32767 : -32768);
+    SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, (buttons >> 17 & 1) ? 32767 : -32768);
 }

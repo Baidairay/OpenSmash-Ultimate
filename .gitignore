@@ -60,6 +60,7 @@ tests/**/golden/
 *.log
 trace_*.txt
 !media/*.png
+!android/app/res/mipmap-*/*.png
 
 # everything scripts/setup.py produces from your dump, and tools you put in deps/
 build/

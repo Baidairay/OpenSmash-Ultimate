@@ -46,6 +46,7 @@ void r1_read_retry_note(void) {}
 void r1_register_heap(void) { r1_on(); }
 int r1_net_on(void) { return 0; }                     /* nnhid.c: R3 online rollback, off here */
 void r1_pad_id(int id, uint64_t *b, int *lx, int *ly, int *rx, int *ry) { (void)id; (void)b; (void)lx; (void)ly; (void)rx; (void)ry; }
+void rbn_stats(int *delay, int *last, int *maxk) { if (delay) *delay = 0; if (last) *last = 0; if (maxk) *maxk = 0; }
 #else
 #include <stdio.h>
 #include <stdlib.h>

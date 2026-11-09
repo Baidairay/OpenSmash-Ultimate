@@ -15,7 +15,28 @@ typedef struct HWAVEOUT__ {
     int channels, paused;
     uint64_t frames;                  /* played since open / reset */
     float vol;
+    struct HWAVEOUT__ *next;
 } Wave;
+
+static pthread_mutex_t g_wave_list_mu = PTHREAD_MUTEX_INITIALIZER;
+static Wave *g_wave_list = NULL;
+static volatile int g_app_audio_paused = 0;
+
+void waveout_aaudio_set_app_paused(int paused) {
+    pthread_mutex_lock(&g_wave_list_mu);
+    g_app_audio_paused = paused;
+    __android_log_print(ANDROID_LOG_INFO, "OpenSmash", "AAudio: waveout_aaudio_set_app_paused(%d)", paused);
+    for (Wave *curr = g_wave_list; curr; curr = curr->next) {
+        if (curr->stream) {
+            if (paused) {
+                AAudioStream_requestPause(curr->stream);
+            } else {
+                AAudioStream_requestStart(curr->stream);
+            }
+        }
+    }
+    pthread_mutex_unlock(&g_wave_list_mu);
+}
 
 static void done(Wave *w, WAVEHDR *h) { h->dwFlags = (h->dwFlags & ~WHDR_INQUEUE) | WHDR_DONE; }
 static aaudio_data_callback_result_t data_cb(AAudioStream *s, void *user, void *audio, int32_t nframes) {
@@ -67,9 +88,25 @@ MMRESULT waveOutOpen(LPHWAVEOUT out, UINT dev, LPCWAVEFORMATEX f, DWORD_PTR cb, 
     aaudio_result_t r = AAudioStreamBuilder_openStream(b, &w->stream);
     AAudioStreamBuilder_delete(b);
     if (r != AAUDIO_OK) { __android_log_print(ANDROID_LOG_WARN, "OpenSmash", "AAudio: openStream failed: %s", AAudio_convertResultToText(r)); free(w); return MMSYSERR_NODRIVER; }
+    
+    /* Samsung / OneUI resampler & route-change safety: tune buffer capacity to 2-3x burst size to avoid underflow */
+    int32_t burst = AAudioStream_getFramesPerBurst(w->stream);
+    if (burst > 0) {
+        int32_t target_buf = burst * 3;
+        AAudioStream_setBufferSizeInFrames(w->stream, target_buf);
+        __android_log_print(ANDROID_LOG_INFO, "OpenSmash", "AAudio: burst %d frames, buffer size set to %d frames", (int)burst, (int)AAudioStream_getBufferSizeInFrames(w->stream));
+    }
+
     if (AAudioStream_getSampleRate(w->stream) != (int32_t)f->nSamplesPerSec)
         __android_log_print(ANDROID_LOG_INFO, "OpenSmash", "AAudio: %d Hz asked, the stream runs at %d Hz (resampled by AAudio)", (int)f->nSamplesPerSec, (int)AAudioStream_getSampleRate(w->stream));
     AAudioStream_requestStart(w->stream);
+    pthread_mutex_lock(&g_wave_list_mu);
+    w->next = g_wave_list;
+    g_wave_list = w;
+    if (g_app_audio_paused) {
+        AAudioStream_requestPause(w->stream);
+    }
+    pthread_mutex_unlock(&g_wave_list_mu);
     *out = w;
     return MMSYSERR_NOERROR;
 }
@@ -77,6 +114,15 @@ MMRESULT waveOutClose(HWAVEOUT w) {
     if (!w) return MMSYSERR_INVALHANDLE;
     AAudioStream_requestStop(w->stream);
     AAudioStream_close(w->stream);
+    pthread_mutex_lock(&g_wave_list_mu);
+    if (g_wave_list == w) {
+        g_wave_list = w->next;
+    } else if (g_wave_list) {
+        for (Wave *p = g_wave_list; p->next; p = p->next) {
+            if (p->next == w) { p->next = w->next; break; }
+        }
+    }
+    pthread_mutex_unlock(&g_wave_list_mu);
     pthread_mutex_destroy(&w->mu);
     free(w);
     return MMSYSERR_NOERROR;

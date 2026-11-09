@@ -4,6 +4,10 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.input.InputManager;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.system.Os;
 import android.text.InputFilter;
@@ -37,6 +41,56 @@ public class GameActivity extends SDLActivity {
     private ArrayList<String> env;
     private TouchControls touch;
     private InputManager.InputDeviceListener padWatch;
+    private AudioManager audioManager;
+    private AudioFocusRequest audioFocusRequest;
+    private final AudioManager.OnAudioFocusChangeListener audioFocusListener = focusChange -> {
+        Log.i("OpenSmash", "onAudioFocusChange: " + focusChange);
+        switch (focusChange) {
+            case AudioManager.AUDIOFOCUS_GAIN:
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                break;
+        }
+    };
+
+    private void requestAppAudioFocus() {
+        if (audioManager == null) {
+            audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        }
+        if (audioManager == null) return;
+        int res;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (audioFocusRequest == null) {
+                AudioAttributes attrs = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_UNKNOWN)
+                        .build();
+                audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                        .setAudioAttributes(attrs)
+                        .setAcceptsDelayedFocusGain(true)
+                        .setOnAudioFocusChangeListener(audioFocusListener)
+                        .build();
+            }
+            res = audioManager.requestAudioFocus(audioFocusRequest);
+        } else {
+            res = audioManager.requestAudioFocus(audioFocusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        }
+        Log.i("OpenSmash", "requestAudioFocus returned " + res);
+    }
+
+    private void abandonAppAudioFocus() {
+        if (audioManager == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (audioFocusRequest != null) {
+                audioManager.abandonAudioFocusRequest(audioFocusRequest);
+            }
+        } else {
+            audioManager.abandonAudioFocus(audioFocusListener);
+        }
+        Log.i("OpenSmash", "abandonAudioFocus called");
+    }
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -110,6 +164,12 @@ public class GameActivity extends SDLActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent ev) {
+        if (ev.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (ev.getAction() == KeyEvent.ACTION_UP) {
+                finish();
+            }
+            return true;
+        }
         if (l1in && (ev.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD)
             Log.i("OpenSmashL1", "key age " + (System.nanoTime() - ev.getEventTime() * 1000000L) + " ns, code " + ev.getKeyCode() + " action " + ev.getAction() + ", now " + System.nanoTime());
         if (ControllerPanel.onKey(this, ev)) return true;
@@ -132,16 +192,40 @@ public class GameActivity extends SDLActivity {
         return a.toArray(new String[0]);
     }
 
+    public static native void nativeSetAudioPause(boolean paused);
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        try {
+            nativeSetAudioPause(false);
+        } catch (Throwable ignored) {}
+        requestAppAudioFocus();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try {
+            nativeSetAudioPause(true);
+        } catch (Throwable ignored) {}
+        abandonAppAudioFocus();
+    }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) requestUnbuffered();
-        if (hasFocus) getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        if (hasFocus) {
+            requestUnbuffered();
+            requestAppAudioFocus();
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        }
     }
 
     @Override
     protected void onDestroy() {
+        abandonAppAudioFocus();
         ControllerPanel.close();
         if (padWatch != null) ((InputManager) getSystemService(Context.INPUT_SERVICE)).unregisterInputDeviceListener(padWatch);
         super.onDestroy();
@@ -150,6 +234,26 @@ public class GameActivity extends SDLActivity {
     }
 
     /* ------------------------------------------------------------ called from native code (android_main.c), any thread */
+    public static void deviceVibrate(float amplitude, int durationMs) {
+        GameActivity a = self;
+        if (a == null) return;
+        try {
+            android.os.Vibrator v = (android.os.Vibrator) a.getSystemService(Context.VIBRATOR_SERVICE);
+            if (v != null && v.hasVibrator()) {
+                if (amplitude <= 0.001f || durationMs <= 0) {
+                    v.cancel();
+                    return;
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    int amp = Math.max(1, Math.min(255, (int)(amplitude * 255.0f)));
+                    v.vibrate(android.os.VibrationEffect.createOneShot(Math.max(10, durationMs), amp));
+                } else {
+                    v.vibrate(Math.max(10, durationMs));
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
     public static void showMessage(String title, String text) {
         GameActivity a = self;
         if (a == null) return;

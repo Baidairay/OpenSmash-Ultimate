@@ -1,12 +1,21 @@
 # OpenSmash-Ultimate for Android
 
+[繁體中文說明文件 (Traditional Chinese README)](README.zh-TW.md)
+
 **Super Smash Bros. Ultimate on Android, recompiled to native arm64 code and drawn with Vulkan.**
-An experimental port of the [OpenSmash-Ultimate](https://github.com/Denkishi/ssbu-recomp) PC project, with an on-device
-launcher that sets the game up from your own Switch files.
+An experimental port of the [OpenSmash-Ultimate](https://github.com/Denkishi/ssbu-recomp) PC project and [hapqe/ssbu-recomp](https://github.com/hapqe/ssbu-recomp), with an on-device launcher that sets the game up from your own Switch files.
 
 ![Platform](https://img.shields.io/badge/platform-Android%20arm64-lightgrey)
 ![Game versions](https://img.shields.io/badge/game-13.0.4%20%7C%2013.0.5-green)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
+
+### Key Improvements in this Fork
+- **App Name & Icon**: Rebranded with official title "任天堂明星大亂鬥" and high-resolution Smash icon.
+- **Instant Play**: Auto-starts the game directly on open when files are ready; back swipe/gesture exits back to settings.
+- **Audio Lifecycle & Background Pause**: Pauses all audio when the app is backgrounded or minimized, resuming seamlessly on return.
+- **Font & Glyph Rendering Fix**: Corrects tofu/box character rendering issues in menus.
+- **Smart Vibration Dispatch & Controls**: Haptic rumble dispatches to external controllers when connected, or falls back to the device's internal vibration motor when using touch controls. Independent toggles for both in launcher settings. Controller type defaults to Pro Controller (`STYLE_FULLKEY`).
+- **Local Wireless Networking**: Built with full `net_relay.c` support and Linux/Android LDN compatibility.
 
 > **Mostly made with AI.** Most of this port (the launcher, the runtime changes, the build scripts and this README) was
 > written with AI coding assistants (Claude), directed and tested by one person. Expect rough edges, and read the code

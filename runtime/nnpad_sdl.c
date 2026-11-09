@@ -830,11 +830,45 @@ void nnpad_swap(int a, int b) {
     if (y) apply_player_index(y);
     unlock();
 }
+#ifdef SSBU_ANDROID
+void android_device_vibrate(float amplitude, int duration_ms);
+#endif
 void nnpad_rumble(int player, float low, float high) {
     Dev *d;
     if (!g_sdl_ok || player < 0 || player > 7) return;
     lock();
     d = dev_of(player);
+#ifdef SSBU_ANDROID
+    /* Check if any real (physical) gamepad is connected */
+    int has_physical_pad = 0;
+    for (int i = 0; i < MAXDEV; i++) {
+        if (g_dev[i].used && !g_dev[i].ignored && !g_dev[i].virt) {
+            has_physical_pad = 1;
+            break;
+        }
+    }
+    const char *env_pad = getenv("SSBU_PAD_RUMBLE");
+    int pad_rumble_enabled = !env_pad || atoi(env_pad) != 0;
+    const char *env_dev = getenv("SSBU_DEVICE_RUMBLE");
+    int dev_rumble_enabled = !env_dev || atoi(env_dev) != 0;
+
+    if (!has_physical_pad && player == 0) {
+        /* No physical controller attached -> dispatch rumble to device vibration motor if enabled */
+        if (dev_rumble_enabled) {
+            float amp = low > high ? low : high;
+            if (amp > 1.0f) amp = 1.0f;
+            if (amp < 0.0f) amp = 0.0f;
+            android_device_vibrate(amp, amp > 0.01f ? 100 : 0);
+        }
+        unlock();
+        return;
+    }
+    /* If physical controller is connected but pad rumble disabled by user settings */
+    if (!pad_rumble_enabled) {
+        unlock();
+        return;
+    }
+#endif
     if (d && (d->gp || d->js)) {
         float s = eff_rumble(d) ? EFF(d, rstr) : 0.0f;
         float l = low * s, h = high * s;

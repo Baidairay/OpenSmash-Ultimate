@@ -274,7 +274,9 @@ static void audio_OpenDefaultAudioOut(Ctx *c) {       /* (AudioOut *, nn::os::Sy
             GetModuleFileNameA(NULL, exe, sizeof exe);
             const char *base = strrchr(exe, '\\') ? strrchr(exe, '\\') + 1 : exe, *vol = getenv("SSBU_VOLUME");
             int gfx_volume(void);                     /* U1: graphics.ini volume = auto | 0..100, for the copies a person plays only (gfx_options.c) */
-#ifdef _WIN32
+#if defined(SSBU_ANDROID)
+            int person = 1;
+#elif defined(_WIN32)
             int person = !_stricmp(base, "ssbu_native.exe") || !_stricmp(base, "ssbu_user.exe") || !_stricmp(base, "ssbu_native_rb.exe");   /* (_rb: the rollback pair) */
 #else
             if (strrchr(base, '/')) base = strrchr(base, '/') + 1;

@@ -81,13 +81,14 @@ public class LauncherActivity extends Activity {
     private Button start, copy;
     private ProgressBar progress;
     private Spinner touch, resolution, aspect;
-    private CheckBox fps;
+    private CheckBox fps, padRumble, deviceRumble;
     private String folderPath;
     /* the game's render resolution: resolution_scale of graphics.ini against the Switch's 1920x1080 (SSBU_VK_SCALE) */
     private static final String[] RES_NAMES = {"From graphics.ini", "540p (0.5×)", "720p (0.67×)", "900p (0.83×)", "1080p (native)", "1440p (1.33×)", "2160p (2×)"};
     private static final String[] RES_SCALE = {null, "0.5", "0.6667", "0.8333", "1.0", "1.3333", "2.0"};
     private final Handler ui = new Handler(Looper.getMainLooper());
     private volatile boolean busy;
+    private boolean autoLaunched = false;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -201,6 +202,20 @@ public class LauncherActivity extends Activity {
         fps.setChecked(p.getBoolean("fps", false));
         u.add(disp, fps, 8);
 
+        padRumble = new CheckBox(this);
+        padRumble.setText("外接手把震動 (Controller Rumble)");
+        padRumble.setTextColor(Ui.TEXT);
+        padRumble.setButtonTintList(android.content.res.ColorStateList.valueOf(Ui.ACCENT));
+        padRumble.setChecked(p.getBoolean("pad_rumble", true));
+        u.add(disp, padRumble, 6);
+
+        deviceRumble = new CheckBox(this);
+        deviceRumble.setText("裝置機身震動 (Device Vibration)");
+        deviceRumble.setTextColor(Ui.TEXT);
+        deviceRumble.setButtonTintList(android.content.res.ColorStateList.valueOf(Ui.ACCENT));
+        deviceRumble.setChecked(p.getBoolean("device_rumble", true));
+        u.add(disp, deviceRumble, 6);
+
         /* ---- GPU driver */
         LinearLayout drv = u.card(page, "GPU driver", null);
         driverInfo = u.text("", 13, Ui.TEXT2);
@@ -304,6 +319,10 @@ public class LauncherActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refresh();
+        if (ready && !autoLaunched) {
+            autoLaunched = true;
+            startGame();
+        }
     }
 
     @Override
@@ -327,7 +346,9 @@ public class LauncherActivity extends Activity {
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString("folder", folderPath)
                 .putString("env", extraEnv.getText().toString()).putInt("touch_mode", touch.getSelectedItemPosition())
                 .putInt("resolution", resolution.getSelectedItemPosition())
-                .putInt("aspect", aspect.getSelectedItemPosition()).putBoolean("fps", fps.isChecked()).apply();
+                .putInt("aspect", aspect.getSelectedItemPosition()).putBoolean("fps", fps.isChecked())
+                .putBoolean("pad_rumble", padRumble != null && padRumble.isChecked())
+                .putBoolean("device_rumble", deviceRumble != null && deviceRumble.isChecked()).apply();
     }
 
     /** The screen's shape held in landscape, e.g. "20:9" (2400x1080), the cut-out of a camera included. */
@@ -952,6 +973,8 @@ public class LauncherActivity extends Activity {
         int as = aspect.getSelectedItemPosition();
         if (as > 0) env.add("SSBU_ASPECT=" + (as == 3 ? "wide" : as == 2 ? "stretch" : "keep"));
         if (fps.isChecked()) env.add("SSBU_FPS=1");
+        env.add("SSBU_PAD_RUMBLE=" + (padRumble != null && padRumble.isChecked() ? "1" : "0"));
+        env.add("SSBU_DEVICE_RUMBLE=" + (deviceRumble != null && deviceRumble.isChecked() ? "1" : "0"));
         for (String l : extraEnv.getText().toString().split("\n")) { l = l.trim(); if (l.contains("=") && !l.startsWith("#")) env.add(l); }
         env.add("SSBU_LOCALE=" + Locale.getDefault().toLanguageTag());
         env.add("SSBU_REGION=" + Locale.getDefault().getCountry());

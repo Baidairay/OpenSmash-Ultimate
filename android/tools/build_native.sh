@@ -42,7 +42,7 @@ import os, sys
 sys.path.insert(0, sys.argv[1])
 os.environ.setdefault('IMGUI_ROOT', os.path.join(sys.argv[1], 'no-imgui'))
 import build
-src = [n for n in build.HOST_SOURCES if n not in ('osk.c', 'net_relay.c')] + ['gamedll.c', 'menu_stub.c', 'net_off.c']      # online play: off, as in the Linux build (net_off.c)
+src = [n for n in build.HOST_SOURCES if n not in ('osk.c',)] + ['gamedll.c', 'menu_stub.c']      # online play: net_relay.c included!
 print(' '.join(src))
 EOF
 )"
