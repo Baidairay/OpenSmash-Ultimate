@@ -80,9 +80,42 @@ public class LauncherActivity extends Activity {
     private LinearLayout checks;
     private Button start, copy;
     private ProgressBar progress;
-    private Spinner touch, resolution, aspect;
+    private Spinner touch, resolution, aspect, language;
     private CheckBox fps, padRumble, deviceRumble;
     private String folderPath;
+    /* Supported in-game languages */
+    private static final String[] LANG_NAMES = {
+        "English (US) [Default]",
+        "繁體中文 (Traditional Chinese)",
+        "简体中文 (Simplified Chinese)",
+        "日本語 (Japanese)",
+        "English (UK)",
+        "Français (France)",
+        "Français (Canada)",
+        "Deutsch (German)",
+        "Italiano (Italian)",
+        "Español (España)",
+        "Español (Latinoamérica)",
+        "한국어 (Korean)",
+        "Nederlands (Dutch)",
+        "Русский (Russian)"
+    };
+    private static final String[] LANG_CODES = {
+        "en-US",
+        "zh-Hant",
+        "zh-Hans",
+        "ja",
+        "en-GB",
+        "fr",
+        "fr-CA",
+        "de",
+        "it",
+        "es",
+        "es-419",
+        "ko",
+        "nl",
+        "ru"
+    };
     /* the game's render resolution: resolution_scale of graphics.ini against the Switch's 1920x1080 (SSBU_VK_SCALE) */
     private static final String[] RES_NAMES = {"From graphics.ini", "540p (0.5×)", "720p (0.67×)", "900p (0.83×)", "1080p (native)", "1440p (1.33×)", "2160p (2×)"};
     private static final String[] RES_SCALE = {null, "0.5", "0.6667", "0.8333", "1.0", "1.3333", "2.0"};
@@ -216,6 +249,10 @@ public class LauncherActivity extends Activity {
         deviceRumble.setChecked(p.getBoolean("device_rumble", true));
         u.add(disp, deviceRumble, 6);
 
+        disp.addView(u.label("Language / 遊戲語言"));
+        language = u.spinner(LANG_NAMES, p.getInt("language_idx", 0));
+        disp.addView(language);
+
         /* ---- GPU driver */
         LinearLayout drv = u.card(page, "GPU driver", null);
         driverInfo = u.text("", 13, Ui.TEXT2);
@@ -348,7 +385,8 @@ public class LauncherActivity extends Activity {
                 .putInt("resolution", resolution.getSelectedItemPosition())
                 .putInt("aspect", aspect.getSelectedItemPosition()).putBoolean("fps", fps.isChecked())
                 .putBoolean("pad_rumble", padRumble != null && padRumble.isChecked())
-                .putBoolean("device_rumble", deviceRumble != null && deviceRumble.isChecked()).apply();
+                .putBoolean("device_rumble", deviceRumble != null && deviceRumble.isChecked())
+                .putInt("language_idx", language != null ? language.getSelectedItemPosition() : 0).apply();
     }
 
     /** The screen's shape held in landscape, e.g. "20:9" (2400x1080), the cut-out of a camera included. */
@@ -975,8 +1013,11 @@ public class LauncherActivity extends Activity {
         if (fps.isChecked()) env.add("SSBU_FPS=1");
         env.add("SSBU_PAD_RUMBLE=" + (padRumble != null && padRumble.isChecked() ? "1" : "0"));
         env.add("SSBU_DEVICE_RUMBLE=" + (deviceRumble != null && deviceRumble.isChecked() ? "1" : "0"));
+        int langIdx = language != null ? language.getSelectedItemPosition() : 0;
+        String langCode = (langIdx >= 0 && langIdx < LANG_CODES.length) ? LANG_CODES[langIdx] : "en-US";
+        env.add("SSBU_LANGUAGE=" + langCode);
+        env.add("SSBU_LOCALE=" + langCode);
         for (String l : extraEnv.getText().toString().split("\n")) { l = l.trim(); if (l.contains("=") && !l.startsWith("#")) env.add(l); }
-        env.add("SSBU_LOCALE=" + Locale.getDefault().toLanguageTag());
         env.add("SSBU_REGION=" + Locale.getDefault().getCountry());
         env.add("SSBU_TZ_NAME=" + TimeZone.getDefault().getID());
         Intent i = new Intent(this, GameActivity.class);

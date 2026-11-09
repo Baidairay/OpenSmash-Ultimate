@@ -38,7 +38,10 @@
    - **多人獨立震動**：本地 1～8 人對戰時，各玩家角色的震動僅傳遞至其對應的手把，互不干擾。
    - **設定開關**：啟動器設定中新增「外接手把震動」與「裝置機身震動」獨立切換開關。
    - **手把識別**：所有外接控制器與虛擬觸控預設均以 Switch Pro Controller (`STYLE_FULLKEY`) 規格回報給遊戲。
-6. **跨裝置鄰近通訊連線 (Local Wireless / nn::ldn)**：
+6. **語言預設以英文為主並支援快速切換 (Language Switcher)**：
+   - 預設語言調整為 **English (US)**，同時在啟動器中新增直覺的語言選單（Language Spinner）。
+   - 支援快速切換為 **繁體中文 (Traditional Chinese)**、**简体中文 (Simplified Chinese)**、**日本語 (Japanese)**、法語、德語、義大利語、西班牙語、韓語等全球 14 種官方語言，免去手動編輯環境變數。
+7. **跨裝置鄰近通訊連線 (Local Wireless / nn::ldn)**：
    - 啟用並鏈接完整 `net_relay.c` 模組，修復 Linux/Android 下的符號依賴，使 Android 裝置具備跨裝置鄰近通訊能力。
 
 ---

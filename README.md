@@ -15,6 +15,7 @@ An experimental port of the [OpenSmash-Ultimate](https://github.com/Denkishi/ssb
 - **Audio Lifecycle & Background Pause**: Pauses all audio when the app is backgrounded or minimized, resuming seamlessly on return.
 - **Font & Glyph Rendering Fix**: Corrects tofu/box character rendering issues in menus.
 - **Smart Vibration Dispatch & Controls**: Haptic rumble dispatches to external controllers when connected, or falls back to the device's internal vibration motor when using touch controls. Independent toggles for both in launcher settings. Controller type defaults to Pro Controller (`STYLE_FULLKEY`).
+- **Default English & Fast Language Switcher**: Defaults to English (US) with a dedicated on-screen dropdown to easily switch between 14 official languages (Traditional Chinese, Simplified Chinese, Japanese, French, German, Spanish, Korean, etc.) without tweaking config files.
 - **Local Wireless Networking**: Built with full `net_relay.c` support and Linux/Android LDN compatibility.
 
 > **Mostly made with AI.** Most of this port (the launcher, the runtime changes, the build scripts and this README) was
